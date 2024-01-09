@@ -1,3 +1,7 @@
+##############################
+## Code for running the AMR ##
+##############################
+
 import threading  # Import to libery
 import pyads  # Import van libery
 import telnetlib  # Import van libery
