@@ -1,23 +1,31 @@
 # Tembo-PickupAutomatisation
 
-# template-repository
-codering
-Tijdens het opleveren van code zien we graag dat er een README bestand wordt meegeleverd, dit maakt het gemakkelijker voor een ander om met jouw code verder te gaan of er gebruik van te maken.
-Deze README beschrijft het project, wat je nodig hebt om de code te gebruiken en hoe je de code kunt gebruiken. Uiteraard kan dit ietsje afwijken aan de hand van welke taal je hebt geprogrammeerd, maar blijf het liefst zo dicht bij mogelijk bij deze standaarden.
+Deze codes worden gebruikt voor proof of concept voor het bedrijf Tembo. Het systeem was ontworpen om erachter te komen of het geheel geautomatiseerd kon worden. hierbij wordt er gebruikt gemaakt van een Gantry en een AMR. Deze twee moeten worden geprogrameerd voor de AMR is er gebruikt gemaakt van python. en voor de plc door middel van structered text. 
 
-De volgende dingen zien we graag in een README:
-- beschrijving: graag zien we een korte beschrijving van je project. dus een korte uitleg wat je code doet als je het gebruikt.
-- imports en versies: graag zien we een lijst met alle imports, packages, software, etc die je hebt gebruikt met de versies. Denk hierbij aan je python versie, dat je iets met "pip install" hebt geinstalleerd of dat je ubuntu 23.04 als operating system hebt gebruikt (dus ook welke versie je hebt geinstalleerd). (test dus ook je code op een andere laptop!!! hierdoor weet je zeker dat je alles genoteerd hebt)
-- architectuur: graag zien we een korte beschrijving van de architectuur van je project. welke bestanden hebben welke bestanden nodig en wat kun je in welk bestand vinden.
-- reference: graag zien we een lijst met welke code je niet zelf hebt gemaakt of gebaseerd hebt op een ander zijn code met daarbij een link naar de originele code en een datum waarop je die code hebt geraadpleegd. Dit zorgt ervoor dat de juiste mensen credit krijgen. (let op, ook als je een functie ergens vandaan haalt en aanpast hoor je nog steeds te zeggen wie daar credit voor krijgt).
-- usage: op het moment dat je extra hardware zoals een robot gebruikt is het fijn als er ook iets uitgelegd wordt over hoe je alles hebt aangesloten en opgestart. Misschien is het wel van belang dat je eerst het programma op de cobot start voordat je de python code op je laptop start.
+Het is de bedoeling dat het systeem de waspods van de lopendeband in een tray gelegd wordt. Hierna moet doormiddel van de AMR de trays naar de kwaliteitscontrole vervoerd worden. 
+De python code is voor de werking van de AMR. Deze staat in directe communicatie met de PLC. Doormiddel van het internet kan de plc communiceren. In het document is er duidelijk te zien wat er gebeurt bij elke functie. 
 
-- commenting: in code is het vrij normaal om comments te gebruiken om je code duidelijker te maken. Graag zien we dan ook dat dit gedaan wordt.
-	- functie beschrijving: Liefst zien we dat er per functie met een comment uitgelegd wordt hoe de functie werkt en waarvoor ie bedoeld wordt (dit kan vaak in 1 zin). mocht de functie lang zijn dan zien we ook graag comments tussendoor.
-	- Bestand beschrijving: Liefst zien we bovenaan elk bestand dat er een korte beschrijving staat van welke functies er in het bestand geprogrammeerd zijn.
-	- Variabele beschrijving:
+Hardware:
+- Omron LD-60;
+- Beckhoff PLC CX5100;
+- Laptop windows11.
 
-mocht je wat inspiratie willen kun je op de github hieronder even kijken.
-https://github.com/matiassingers/awesome-readme
+Software:
+- Python version 3.12.0 64-bit
+- TwinCat XAE Shell version 3;
 
-https://integrity.mit.edu/handbook/academic-integrity-handbook
+Imports FinalScript.py:
+- Threading;
+- Pyads version 3.3.9;
+- Telnetlib version 3;
+- time;
+
+Imports "plc programma naam":
+
+
+Architectuur: 
+- De PLC heeft een connectie met het internet nodig voor de communicatie met de AMR. Hiervoor is er gebruikt gemaakt van een TP-Link wireless USB adapter (AC660). Verder is er in de PLC een task opgesteld dat wanneer de PLC wordt opgestart, dat dan het python script automatisch wordt aangeroepen zodat er een connectie tussen de AMR en PLC opgezet is;
+- De PLC kent zijn eigen code die is geupload vanaf de laptop met het programma TwinCat XAE Shell.
+
+Usage:
+- Voor het gebruik van het systeem is het van belang dat eerst de AMR wordt gestart en wanneer deze volledig is opgestart dan pas de PLC aan te zetten. Dit zorgt ervoor dat er een juiste communicatie tussen de PLC en AMR bevind.
