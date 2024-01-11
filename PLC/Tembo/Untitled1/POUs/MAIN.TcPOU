@@ -14,7 +14,10 @@ reset AT %I*: BOOL;
 END_VAR;
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[CASE status OF
+      <ST><![CDATA[//Deze code was bedoeld om te kijken of we de vision camera konden triggeren m.b.v. ST code. Dit is (op een heel basis niveau) gelukt. Deze code is niet actief betrokken in de huidige plc code.
+
+
+CASE status OF
 	
 0: 	IF Button = TRUE THEN
 	Trig := TRUE;
@@ -50,6 +53,7 @@ END_CASE
 ]]></ST>
     </Implementation>
     <LineIds Name="MAIN">
+      <LineId Id="181" Count="2" />
       <LineId Id="140" Count="29" />
       <LineId Id="84" Count="0" />
       <LineId Id="75" Count="0" />

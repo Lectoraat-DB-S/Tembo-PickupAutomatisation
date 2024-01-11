@@ -21,7 +21,9 @@ YMotorReset: MC_Reset;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[XMotorPosition(Axis := Xas, Velocity := 250, Acceleration := 10, Deceleration := 2000, Jerk := 100000);
+      <ST><![CDATA[//Deze code is gemaakt om te testen hoe een servomotor moest worden aangestuurd. Deze code is niet actief betrokken in de huidige plc code.
+
+XMotorPosition(Axis := Xas, Velocity := 250, Acceleration := 10, Deceleration := 2000, Jerk := 100000);
 YMotorPosition(Axis := Yas, Velocity := 250, Acceleration := 10, Deceleration := 2000, Jerk := 100000);
 XMotorPower(Axis:= Xas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
 YMotorPower(Axis:= Yas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
@@ -43,6 +45,7 @@ END_IF
 ]]></ST>
     </Implementation>
     <LineIds Name="MAIN">
+      <LineId Id="58" Count="1" />
       <LineId Id="13" Count="0" />
       <LineId Id="2" Count="0" />
       <LineId Id="24" Count="0" />
