@@ -27,7 +27,10 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[
+      <ST><![CDATA[//Deze code is gemaakt om voor de eerste keer te werken met pneumatiek. Deze code is niet actief betrokken in de huidige plc code.
+
+
+
 YMotorPosition(Axis := Yas, Velocity := 1300, Acceleration := 5000, Deceleration := 5000, Jerk := 100000);
 YMotorPower(Axis := Yas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
 CASE state OF
@@ -94,6 +97,8 @@ END_CASE	 ]]></ST>
     </Implementation>
     <LineIds Name="MAIN">
       <LineId Id="34" Count="0" />
+      <LineId Id="172" Count="1" />
+      <LineId Id="171" Count="0" />
       <LineId Id="106" Count="0" />
       <LineId Id="47" Count="0" />
       <LineId Id="28" Count="0" />
