@@ -1,0 +1,19 @@
+*.suo
+#*.sln
+*.bak
+_Libraries/
+*.tszip
+*.tmc
+*.tpy
+_CompileInfo/
+*.~u
+_Boot/
+#licence file
+*tclrs
+Thumbs.db
+*.tmcRefac
+/.vs/slnx.sqlite
+/.vs/VSWorkspaceState.json
+*.vpp.bak*
+*.orig
+

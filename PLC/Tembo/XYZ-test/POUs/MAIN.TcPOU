@@ -1,0 +1,606 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{81c9a74c-03e9-4a27-9583-67c673982615}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+
+State: Step;
+
+StopButton AT %I*: BOOL;
+
+TimerMotorStart: TON;
+TimerPick: TON;
+TimerRelease: TON;
+TimerZUp: TON;
+TimerTrayMotor: TON;
+TimerWaitBeforeMove: TON;
+	
+Xas: AXIS_REF;
+Yas: AXIS_REF;
+Tray: AXIS_REF;
+
+XMotorPower: MC_power; 
+YMotorPower: MC_power;
+TrayMotorPower: MC_power;
+
+XMotorPosition: MC_MoveAbsolute;
+YMotorPosition: MC_MoveAbsolute;
+TrayMotorPosition: MC_MoveAbsolute;
+
+XMotorHome: MC_Home;
+YMotorHome: MC_Home;
+TrayMotorHome: MC_Home;
+
+XMotorReset: MC_Reset;
+YMotorReset: MC_Reset;
+TrayMotorReset: MC_Reset;
+
+XMotorJog: MC_Jog;
+YMotorJog: MC_Jog;
+
+XJogForward : BOOL;
+XJogBackwards : BOOL;
+
+YJogForward : BOOL;
+YJogBackwards : BOOL;
+ 
+
+HomingDone: BOOL;
+
+GripperSmall AT %Q*: BOOL;
+GripperWide AT %Q*: BOOL;
+Z_Down AT %Q*: BOOL;
+Z_Up  AT %Q*: BOOL;
+TrayFix_In  AT %Q*: BOOL;
+TrayFix_Out  AT %Q*: BOOL;
+Vacuum AT %Q*: BOOL;
+
+
+
+
+
+PodSensor AT %I*: BOOL;
+
+
+
+XDefault: INT := 0; 		//Positie van X-as waar de gantry wacht om te picken.
+YDefault: INT := 340;		//Positie van Y-as waar de gantry wacht om te picken.
+
+
+XMove: INT := -8000; //AANVULLEN
+YMove: INT := 6125; //AANVULLEN 
+
+
+DefaultCoordinate: INT := -9395; //AANVULLEN
+Coordinate: INT := -9395; //AAMVULLEN		//Variabele voor de huidige rij in de bak.
+PlusCoordinate: INT := 946; //AANVULLEN 	
+MaxCoordinate: INT := -731 ; //AANVULLEN		//Variabele voor de laatste rij in de bak.
+
+
+TrayPositionBlock: INT := 180; //AANVULLEN
+TrayPositionFree: INT := 0; //AANVULLEN
+
+PickTime: TIME:= T#3S; // TIJD CHECKEN
+ReleaseTime: TIME := T#1S; // TIJD CHECKEN
+ZUpTime: TIME := T#3S; // TIJD CHECKEN
+TrayTime: TIME := T#5S; //TIJD CHECKEN
+WaitMoveTime: TIME := T#3990MS; //TIJD CHECKEN
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[XMotorPosition(Axis := Xas, Velocity := 1333, Acceleration := 2000, Deceleration := 2000, Jerk := 100000);
+YMotorPosition(Axis := Yas, Velocity := 1333, Acceleration := 2000, Deceleration := 2000, Jerk := 100000);
+TrayMotorPosition(Axis := Tray, Velocity := 90, Acceleration := 180, Deceleration := 180, Jerk := 100000);
+
+
+CASE State OF
+	
+Step.IDLE:	
+
+	IO.lamp_geel := FALSE;
+	Z_Up := TRUE;
+	Z_Down := FALSE;	
+	GripperSmall := TRUE;
+	GripperWide := FALSE;
+	IO.PLC_Ready := TRUE;
+	XMotorReset(Axis := XAs, Execute := FALSE);
+	YMotorReset(Axis := YAs, Execute := FALSE);
+	TrayMotorReset(Axis := Tray, Execute := FALSE);
+
+	
+
+	
+	IF NOT IO.EmergencyStop THEN
+		State := Step.STOPPED;
+	END_IF
+	
+	
+	IF IO.StartButton THEN
+			State := Step.STARTING;
+	END_IF
+			 
+		
+
+Step.STARTING:
+
+	XMotorPower(Axis:= Xas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
+	YMotorPower(Axis:= Yas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
+	TrayMotorPower(Axis:= Tray, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);	
+	IO.lamp_geel := TRUE;
+	IO.lamp_groen := FALSE;
+	IO.lamp_rood := FALSE;
+	TimerMotorStart(IN := TRUE, PT := T#1S);
+	
+	IF NOT IO.TraySensor AND HomingDone AND NOT TrayMotorPosition.Done THEN
+		IO.TrayRequest := TRUE; // Signaal sturen naar AMR.
+		TrayFix_Out := FALSE;
+		TrayFix_In := TRUE;
+	END_IF 	
+		
+	IF IO.TraySensor AND HomingDone THEN
+		TimerTrayMotor(IN := TRUE, PT := TrayTime);
+	END_IF
+	
+	IF TimerTrayMotor.Q THEN
+		IO.TrayRequest := FALSE; //Signaal sturen naar AMR.		
+		TrayMotorPosition(Axis := Tray, Execute := TRUE, Position := TrayPositionBlock);		
+	END_IF
+	
+	
+	IF TrayMotorPosition.Done THEN
+		TrayFix_Out := TRUE;
+		TrayFix_In := FALSE;
+	END_IF
+	
+	IF NOT IO.EmergencyStop THEN
+		State := Step.STOPPED;
+	END_IF	
+	
+	IF NOT HomingDone AND TimerMotorStart.Q THEN
+		State := Step.HOMING;
+	END_IF	
+	
+	IF HomingDone AND TimerMotorStart.Q AND IO.TraySensor AND TrayFix_Out AND NOT IO.Trayrequest THEN 
+		State := Step.EXECUTE_ZEROING;
+	END_IF
+	
+
+	
+	
+Step.HOMING: 
+
+	IF NOT IO.EmergencyStop THEN
+		State := Step.STOPPED;
+	END_IF
+		
+	IF IO.StartButton THEN
+		IO.HomingSensor := TRUE;
+	END_IF
+	
+	IF IO.HomingSensor = TRUE THEN
+		XMotorHome(Axis := Xas, Execute := TRUE, Position := 0, HomingMode := MC_DIRECT);
+		YMotorHome(Axis := Yas, Execute := TRUE, Position := 0, HomingMode := MC_DIRECT);
+		TrayMotorHome(Axis := Tray, Execute := TRUE, Position := 0, HomingMode := MC_DIRECT);
+	END_IF
+	IF	XMotorHome.Done AND YMotorHome.Done AND TrayMotorHome.Done THEN
+		HomingDone := TRUE;
+		State := Step.STARTING;
+	END_IF
+	
+  	
+Step.EXECUTE_ZEROING:
+	TrayMotorPosition(Axis := Tray, Execute := FALSE);
+	IO.lamp_geel := FALSE;
+	IO.lamp_groen := TRUE;
+	IO.lamp_rood := FALSE;
+	XMotorPosition(Axis := Xas, Execute := TRUE, Position := XDefault);
+	YMotorPosition(Axis := Yas, Execute := TRUE, Position := YDefault);	
+	TimerRelease(IN := FALSE);
+	TimerTrayMotor(IN := FALSE);
+	TimerZUp(IN := FALSE);
+	
+
+	IF NOT IO.EmergencyStop THEN
+		State := Step.STOPPED;
+	END_IF	
+	
+	IF  XMotorPosition.Done AND YMotorPosition.Done AND Coordinate < MaxCoordinate AND PodSensor THEN
+		XMotorPosition(Axis := Xas, Execute := FALSE);
+		YMotorPosition(Axis := Yas, Execute := FALSE);
+		State:= Step.EXECUTE_PICK;	
+	ELSIF Coordinate > MaxCoordinate THEN
+		State:= Step.SUSPENDED;
+	END_IF
+
+Step.EXECUTE_PICK:
+	GripperSmall := TRUE;
+	GripperWide := FALSE;
+	TimerWaitBeforeMove(IN := TRUE, PT := WaitMoveTime);
+	
+	IF NOT IO.EmergencyStop THEN
+		State := Step.STOPPED;
+	END_IF
+	
+	IF TimerWaitBeforeMove.Q THEN
+		XMotorPosition(Axis := Xas, Execute := TRUE, Position := XMove);
+		TimerPick(IN := TRUE, PT := PickTime);
+	END_IF
+	
+	IF TimerPick.Q THEN 
+		TimerZUp(IN := TRUE, PT := ZUpTime);
+		Z_Up := FALSE;
+		Z_Down := TRUE;
+		Vacuum := TRUE;
+	END_IF
+	
+	IF  TimerZUp.Q THEN
+
+		Z_Up := TRUE;
+		Z_Down := FALSE;						
+	END_IF
+	
+	IF XMotorPosition.Done THEN
+		XMotorPosition(Axis := Xas, Execute := FALSE);
+		TimerZUp(IN := FALSE);	
+ 		State := Step.EXECUTE_PLACE;
+	END_IF
+	
+Step.EXECUTE_PLACE:
+
+	TimerPick(IN := FALSE);
+	TimerWaitBeforeMove(IN := FALSE);
+	
+	IF NOT TimerZUp.Q AND NOT TimerPick.Q THEN
+		XMotorPosition(Axis := Xas, Execute := TRUE, Position := Coordinate);
+		YMotorPosition(Axis := Yas, Execute := TRUE, Position := YMove);
+	END_IF
+	
+	IF Z_Up THEN
+		GripperSmall := FALSE;
+		GripperWide := TRUE;		
+	END_IF
+	
+	IF NOT IO.EmergencyStop THEN
+	State := Step.STOPPED;
+	END_IF
+	
+	IF  XMotorPosition.Done AND YMotorPosition.Done THEN
+		Z_Up := FALSE;
+		Z_Down := TRUE;	
+		TimerRelease(IN := TRUE, PT := ReleaseTime);																
+	END_IF
+	
+	IF TimerRelease.Q THEN
+		Vacuum := FALSE;
+		TimerZUp(IN := TRUE, PT := ZUpTime);
+	END_IF
+	
+	IF TimerZUp.Q THEN
+		Z_Up := TRUE;
+		Z_Down := FALSE;
+		Coordinate := Coordinate + PlusCoordinate;
+		XMotorPosition(Axis := Xas, Execute := FALSE);
+		YMotorPosition(Axis := Yas, Execute := FALSE);
+		State := Step.EXECUTE_ZEROING;
+	END_IF
+	
+
+Step.SUSPENDED:
+	
+	IO.lamp_geel := TRUE;
+	IO.lamp_groen := FALSE;
+	IO.lamp_rood := FALSE;
+	TrayFix_In := TRUE;
+	TrayFix_Out := FALSE;
+	IO.TrayRequest := TRUE;	
+	TrayMotorPosition(Axis := Tray, Execute := TRUE, Position := TrayPositionFree);	
+		
+	IF NOT IO.TraySensor THEN
+		TrayMotorPosition(Axis := Tray, Execute := FALSE);	
+		State := Step.UNSUSPENDING;
+	END_IF
+
+	IF NOT IO.EmergencyStop THEN
+	State := Step.STOPPED;
+	END_IF
+
+Step.UNSUSPENDING:
+
+	Coordinate := DefaultCoordinate;
+	
+	IF IO.TraySensor THEN
+		TimerTrayMotor(IN := TRUE, PT := TrayTime);
+	END_IF
+	
+	IF TimerTrayMotor.Q THEN
+		TrayMotorPosition(Axis := Tray, Execute := TRUE, Position := TrayPositionBlock);	
+	END_IF
+	
+	IF TrayMotorPosition.Done THEN 
+		TrayFix_In := FALSE;
+		TrayFix_Out := TRUE;		
+		IO.TrayRequest := FALSE;
+		State := Step.EXECUTE_ZEROING;
+		TimerTrayMotor(IN := FALSE);
+	END_IF
+	
+	IF NOT IO.EmergencyStop THEN
+	State := Step.STOPPED;
+	END_IF
+	
+Step.STOPPED:
+
+	IO.lamp_geel := FALSE;
+	IO.lamp_groen := FALSE;
+	IO.lamp_rood := TRUE;
+
+	TimerMotorStart(IN := FALSE);
+	TimerTrayMotor(IN := FALSE);
+	XMotorPower(Axis:= Xas, Enable := FALSE, Enable_Positive := FALSE, Enable_Negative := FALSE);
+	YMotorPower(Axis:= Yas, Enable := FALSE, Enable_Positive := FALSE, Enable_Negative := FALSE);
+	TrayMotorPower(Axis:= Tray, Enable := FALSE, Enable_Positive := FALSE, Enable_Negative := FALSE);
+	XMotorPosition(Axis := Xas, Execute := FALSE);
+	YMotorPosition(Axis := Yas, Execute := FALSE);
+	TrayMotorPosition(Axis := Tray, Execute := FALSE);
+	IO.PLC_Ready := FALSE;
+	GripperSmall := FALSE;
+	GripperWide := FALSE;
+	TrayFix_In := FALSE;
+	TrayFix_Out := FALSE;
+	Z_Down := FALSE;
+	Z_Up := FALSE;
+	Vacuum := FALSE;
+	
+	
+	IF IO.EmergencyStop AND IO.ResetButton THEN
+		State := Step.RESETTING;
+	END_IF
+	
+Step.RESETTING:
+
+	IO.lamp_geel := TRUE;
+	IO.lamp_groen := FALSE;
+	IO.lamp_rood := FALSE;
+	
+	IF NOT IO.EmergencyStop THEN
+		State := Step.STOPPED;
+	END_IF
+	
+	IF IO.StartButton THEN
+		XMotorReset(Axis := XAs, Execute := TRUE);
+		YMotorReset(Axis := YAs, Execute := TRUE);
+		TrayMotorReset(Axis := Tray, Execute := TRUE);
+		State := Step.IDLE;
+	END_IF
+	
+
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="171" Count="1" />
+      <LineId Id="507" Count="0" />
+      <LineId Id="1322" Count="0" />
+      <LineId Id="779" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="19" Count="0" />
+      <LineId Id="21" Count="0" />
+      <LineId Id="776" Count="0" />
+      <LineId Id="768" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="620" Count="0" />
+      <LineId Id="619" Count="0" />
+      <LineId Id="621" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="504" Count="0" />
+      <LineId Id="506" Count="0" />
+      <LineId Id="766" Count="0" />
+      <LineId Id="783" Count="1" />
+      <LineId Id="777" Count="0" />
+      <LineId Id="786" Count="0" />
+      <LineId Id="492" Count="1" />
+      <LineId Id="491" Count="0" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="405" Count="0" />
+      <LineId Id="400" Count="0" />
+      <LineId Id="395" Count="1" />
+      <LineId Id="391" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="53" Count="0" />
+      <LineId Id="52" Count="0" />
+      <LineId Id="56" Count="0" />
+      <LineId Id="55" Count="0" />
+      <LineId Id="193" Count="0" />
+      <LineId Id="892" Count="0" />
+      <LineId Id="401" Count="0" />
+      <LineId Id="517" Count="1" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="883" Count="3" />
+      <LineId Id="900" Count="0" />
+      <LineId Id="887" Count="2" />
+      <LineId Id="923" Count="1" />
+      <LineId Id="932" Count="0" />
+      <LineId Id="935" Count="0" />
+      <LineId Id="933" Count="1" />
+      <LineId Id="931" Count="0" />
+      <LineId Id="930" Count="0" />
+      <LineId Id="903" Count="2" />
+      <LineId Id="488" Count="0" />
+      <LineId Id="906" Count="0" />
+      <LineId Id="881" Count="0" />
+      <LineId Id="489" Count="0" />
+      <LineId Id="486" Count="0" />
+      <LineId Id="588" Count="0" />
+      <LineId Id="586" Count="1" />
+      <LineId Id="487" Count="0" />
+      <LineId Id="589" Count="0" />
+      <LineId Id="73" Count="2" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="78" Count="2" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="482" Count="0" />
+      <LineId Id="484" Count="1" />
+      <LineId Id="483" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="746" Count="0" />
+      <LineId Id="748" Count="1" />
+      <LineId Id="747" Count="0" />
+      <LineId Id="317" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="772" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="408" Count="0" />
+      <LineId Id="407" Count="0" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="296" Count="1" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="519" Count="2" />
+      <LineId Id="321" Count="0" />
+      <LineId Id="320" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="663" Count="0" />
+      <LineId Id="939" Count="0" />
+      <LineId Id="1061" Count="0" />
+      <LineId Id="1324" Count="0" />
+      <LineId Id="478" Count="0" />
+      <LineId Id="480" Count="1" />
+      <LineId Id="323" Count="0" />
+      <LineId Id="479" Count="0" />
+      <LineId Id="324" Count="1" />
+      <LineId Id="971" Count="1" />
+      <LineId Id="329" Count="0" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="328" Count="0" />
+      <LineId Id="949" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="633" Count="1" />
+      <LineId Id="624" Count="0" />
+      <LineId Id="968" Count="0" />
+      <LineId Id="476" Count="1" />
+      <LineId Id="474" Count="1" />
+      <LineId Id="964" Count="0" />
+      <LineId Id="966" Count="0" />
+      <LineId Id="969" Count="0" />
+      <LineId Id="967" Count="0" />
+      <LineId Id="965" Count="0" />
+      <LineId Id="626" Count="0" />
+      <LineId Id="744" Count="0" />
+      <LineId Id="627" Count="2" />
+      <LineId Id="631" Count="0" />
+      <LineId Id="625" Count="0" />
+      <LineId Id="372" Count="0" />
+      <LineId Id="375" Count="0" />
+      <LineId Id="637" Count="0" />
+      <LineId Id="636" Count="0" />
+      <LineId Id="376" Count="0" />
+      <LineId Id="919" Count="0" />
+      <LineId Id="921" Count="0" />
+      <LineId Id="920" Count="0" />
+      <LineId Id="1062" Count="0" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="379" Count="0" />
+      <LineId Id="922" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="664" Count="0" />
+      <LineId Id="134" Count="0" />
+      <LineId Id="915" Count="0" />
+      <LineId Id="970" Count="0" />
+      <LineId Id="916" Count="0" />
+      <LineId Id="338" Count="1" />
+      <LineId Id="640" Count="0" />
+      <LineId Id="917" Count="0" />
+      <LineId Id="641" Count="0" />
+      <LineId Id="913" Count="0" />
+      <LineId Id="911" Count="1" />
+      <LineId Id="639" Count="0" />
+      <LineId Id="468" Count="0" />
+      <LineId Id="467" Count="0" />
+      <LineId Id="341" Count="0" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="342" Count="0" />
+      <LineId Id="380" Count="0" />
+      <LineId Id="643" Count="0" />
+      <LineId Id="651" Count="0" />
+      <LineId Id="346" Count="0" />
+      <LineId Id="653" Count="2" />
+      <LineId Id="1059" Count="0" />
+      <LineId Id="1057" Count="0" />
+      <LineId Id="1060" Count="0" />
+      <LineId Id="1058" Count="0" />
+      <LineId Id="658" Count="0" />
+      <LineId Id="661" Count="1" />
+      <LineId Id="665" Count="2" />
+      <LineId Id="656" Count="0" />
+      <LineId Id="644" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="381" Count="0" />
+      <LineId Id="524" Count="1" />
+      <LineId Id="523" Count="0" />
+      <LineId Id="736" Count="0" />
+      <LineId Id="738" Count="0" />
+      <LineId Id="522" Count="0" />
+      <LineId Id="604" Count="0" />
+      <LineId Id="787" Count="0" />
+      <LineId Id="936" Count="0" />
+      <LineId Id="941" Count="0" />
+      <LineId Id="940" Count="0" />
+      <LineId Id="938" Count="0" />
+      <LineId Id="792" Count="0" />
+      <LineId Id="470" Count="1" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="508" Count="0" />
+      <LineId Id="473" Count="0" />
+      <LineId Id="510" Count="0" />
+      <LineId Id="515" Count="1" />
+      <LineId Id="1147" Count="2" />
+      <LineId Id="1146" Count="0" />
+      <LineId Id="945" Count="0" />
+      <LineId Id="955" Count="0" />
+      <LineId Id="512" Count="0" />
+      <LineId Id="907" Count="0" />
+      <LineId Id="957" Count="0" />
+      <LineId Id="960" Count="2" />
+      <LineId Id="958" Count="0" />
+      <LineId Id="963" Count="0" />
+      <LineId Id="959" Count="0" />
+      <LineId Id="956" Count="0" />
+      <LineId Id="909" Count="1" />
+      <LineId Id="908" Count="0" />
+      <LineId Id="514" Count="0" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="526" Count="0" />
+      <LineId Id="528" Count="1" />
+      <LineId Id="527" Count="0" />
+      <LineId Id="513" Count="0" />
+      <LineId Id="449" Count="0" />
+      <LineId Id="1233" Count="0" />
+      <LineId Id="534" Count="0" />
+      <LineId Id="451" Count="0" />
+      <LineId Id="795" Count="0" />
+      <LineId Id="733" Count="1" />
+      <LineId Id="796" Count="0" />
+      <LineId Id="495" Count="0" />
+      <LineId Id="607" Count="5" />
+      <LineId Id="614" Count="0" />
+      <LineId Id="613" Count="0" />
+      <LineId Id="453" Count="5" />
+      <LineId Id="530" Count="0" />
+      <LineId Id="532" Count="1" />
+      <LineId Id="531" Count="0" />
+      <LineId Id="461" Count="0" />
+      <LineId Id="460" Count="0" />
+      <LineId Id="462" Count="1" />
+      <LineId Id="498" Count="2" />
+      <LineId Id="502" Count="0" />
+      <LineId Id="797" Count="0" />
+      <LineId Id="503" Count="0" />
+      <LineId Id="501" Count="0" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="465" Count="0" />
+      <LineId Id="20" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

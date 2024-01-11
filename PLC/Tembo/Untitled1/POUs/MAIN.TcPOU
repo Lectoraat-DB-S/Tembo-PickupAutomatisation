@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{91bcdbb9-4795-4bbb-a38a-d84db940c48e}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+status: INT;
+Vision: BOOL;
+Trig AT %Q*: BOOL;
+Out AT %I*: BOOL;
+Button AT %I*: BOOL;
+pick: BOOL;
+reset AT %I*: BOOL;
+//request AT %I*: BOOL;
+END_VAR;
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE status OF
+	
+0: 	IF Button = TRUE THEN
+	Trig := TRUE;
+	ELSE Trig := FALSE;
+	END_IF
+	
+	IF Out = TRUE THEN	
+		status := 1;
+	END_IF
+	
+	IF reset = TRUE THEN
+		pick := FALSE;
+	END_IF
+	
+1: IF Button = TRUE THEN
+	Trig := TRUE;
+	ELSE Trig := FALSE;
+	END_IF
+	
+	IF Out = FALSE THEN	
+		pick := TRUE;
+		status := 0;	
+	END_IF
+	
+	IF reset = TRUE THEN
+		pick := FALSE;
+	END_IF
+	
+END_CASE
+
+
+
+]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="140" Count="29" />
+      <LineId Id="84" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="53" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

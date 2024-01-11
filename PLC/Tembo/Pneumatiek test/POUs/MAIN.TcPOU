@@ -1,0 +1,140 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{3b487f31-bc6f-460a-882b-b5f65013a2e4}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	knop_start AT %I*: BOOL;
+	knop_stop AT %I*: BOOL;
+	knop_reset AT %I*: BOOL;
+	druk_uit AT %Q*: BOOL;
+	druk_in AT %Q*: BOOL;
+	z_in AT %Q*: BOOL;
+	z_uit AT %Q*: BOOL;
+	gripper_in AT %Q*: BOOL;
+	gripper_uit AT %Q*: BOOL;
+	vacuum AT %Q*: BOOL;
+	state: INT := 0;
+	Yas: AXIS_REF;
+	YMotorPower: MC_power;
+	YMotorPosition: MC_MoveAbsolute;
+	YMotorHome: MC_Home;
+	YMotorJog: MC_Jog;
+	picktimer: TON;
+	lamp_rood AT %Q*: BOOL;
+	lamp_oranje AT %Q*: BOOL;
+	lamp_groen AT %Q*: BOOL;
+	lamp_blauw AT %Q*: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+YMotorPosition(Axis := Yas, Velocity := 1300, Acceleration := 5000, Deceleration := 5000, Jerk := 100000);
+YMotorPower(Axis := Yas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
+CASE state OF
+
+0 : z_in := TRUE;
+	gripper_uit := TRUE;
+	gripper_in := FALSE;
+	lamp_groen := TRUE;
+	IF knop_reset = TRUE THEN
+		YMotorHome(Axis := Yas, Execute := TRUE, Position := 0, HomingMode := MC_DIRECT);
+	END_IF
+	IF YMotorHome.Done = TRUE THEN
+		state := 1;
+	END_IF
+
+
+
+
+
+
+1 :	YMotorHome(Axis := Yas, Execute := FALSE);
+	IF knop_start = TRUE THEN
+		YMotorPosition(Axis := Yas, Execute := TRUE, Position := 295);
+	END_IF	
+	IF YMotorPosition.Done = TRUE THEN
+		z_in := FALSE;
+		gripper_in := TRUE;
+		z_uit := TRUE;
+		vacuum := TRUE;
+		picktimer(IN := TRUE, PT := T#3S);
+	END_IF
+	IF picktimer.Q = TRUE THEN
+		
+		z_uit := FALSE;
+		gripper_in := FALSE;
+		z_in := TRUE;
+		gripper_uit := TRUE;
+		state := 2;
+	END_IF
+2 : YMotorPosition(Axis := Yas, Execute := FALSE); 
+	state := 3;
+	
+3 :	YMotorPosition(Axis := Yas, Execute := TRUE, Position := 6562); 
+		picktimer(IN := FALSE);
+		IF YMotorPosition.Done = TRUE THEN
+		    YMotorPosition(Axis := Yas, Execute := FALSE);
+			z_in := FALSE;
+			z_uit := TRUE;
+		END_IF
+		
+		IF z_uit = TRUE THEN
+			vacuum := FALSE;
+		END_IF
+		
+		IF vacuum = FALSE THEN
+			z_uit := FALSE;
+			z_in := TRUE;
+			state := 1;
+		END_IF
+	
+		
+	
+END_CASE	 ]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="34" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="38" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="145" Count="1" />
+      <LineId Id="141" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="61" Count="1" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="50" Count="5" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="40" Count="0" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="90" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="68" Count="0" />
+      <LineId Id="70" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="128" Count="5" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="135" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="79" Count="0" />
+      <LineId Id="91" Count="1" />
+      <LineId Id="94" Count="1" />
+      <LineId Id="93" Count="0" />
+      <LineId Id="98" Count="5" />
+      <LineId Id="122" Count="1" />
+      <LineId Id="104" Count="1" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="42" Count="0" />
+      <LineId Id="41" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

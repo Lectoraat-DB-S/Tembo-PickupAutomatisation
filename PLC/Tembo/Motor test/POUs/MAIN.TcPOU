@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{c9b5f613-7e3f-4340-8405-66d9cf0a3910}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+Xas: AXIS_REF;
+Yas: AXIS_REF;
+
+XMotorPower: MC_power; 
+YMotorPower: MC_power;
+XMotorPosition: MC_MoveAbsolute;
+YMotorPosition: MC_MoveAbsolute;
+XMotorHome: MC_Home;
+YMotorHome: MC_Home;
+Estop AT %I*: BOOL;
+links: BOOL;
+rechts: BOOL;
+XMotorReset: MC_Reset;
+YMotorReset: MC_Reset;
+
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[XMotorPosition(Axis := Xas, Velocity := 250, Acceleration := 10, Deceleration := 2000, Jerk := 100000);
+YMotorPosition(Axis := Yas, Velocity := 250, Acceleration := 10, Deceleration := 2000, Jerk := 100000);
+XMotorPower(Axis:= Xas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
+YMotorPower(Axis:= Yas, Enable := TRUE, Enable_Positive := TRUE, Enable_Negative := TRUE);
+
+
+//XMotorHome(Axis := Xas, Execute := TRUE, Position := 0, HomingMode := MC_DIRECT); 
+
+IF links AND NOT rechts AND Estop THEN
+	XMotorPosition(Axis := Xas, Execute := TRUE, Position:= 500);
+END_IF
+
+IF NOT links AND rechts AND Estop THEN
+	XMotorPosition(Axis := Xas, Execute := TRUE, Position:= -500);
+END_IF
+
+IF NOT Estop THEN
+	XMotorPosition( Axis := Xas, Execute := FALSE);
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="13" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="24" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="39" Count="0" />
+      <LineId Id="16" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="21" Count="1" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="30" Count="1" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="1" />
+      <LineId Id="33" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

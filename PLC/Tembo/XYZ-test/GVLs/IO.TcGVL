@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="IO" Id="{260e6969-c620-442c-8464-9b2d08bcb0b5}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+
+//Inputs
+
+StartButton AT %I*: BOOL;
+//StopButton AT %I*: BOOL;
+ResetButton AT %I*: BOOL;
+TraySensor AT %I*: BOOL;
+HomingSensor (*AT %I**): BOOL; //Nog veranderen naar een INT wanneer de sensor getest is.
+Gripper (*AT %I**): BOOL;
+EmergencyStop AT %I*: BOOL;
+//Outputs
+
+lamp_rood AT %Q*: BOOL;
+lamp_geel AT %Q*: BOOL;
+lamp_groen AT %Q*: BOOL;
+
+
+//Variabelen voor AMR
+PLC_Ready: BOOL;
+TrayRequest: BOOL;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>
